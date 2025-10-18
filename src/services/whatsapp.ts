@@ -1,7 +1,7 @@
 import { Mensaje, SentimientosData, TemasData } from "@/types/api.ts";
 
 const API_BASE_URL =
-    (import.meta as any)?.env?.VITE_API_BASE_URL || "http://localhost:5000";
+    (import.meta as any)?.env?.VITE_API_BASE_URL || "https://api-twilio.onrender.com";
 
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${API_BASE_URL}${path}`, init);
