@@ -277,10 +277,11 @@ const Home: FC = () => {
               transition={{ duration: 0.5 }}
               className="mb-8"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-semibold">Dashboard WhatsApp</h1>
-                <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm">
+            <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
+              {/* Header Section */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <h1 className="text-xl font-semibold sm:text-2xl">Dashboard WhatsApp</h1>
+                <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm w-fit">
                   <Activity className="h-3.5 w-3.5 text-emerald-500" />
                   <span className="text-zinc-400">En vivo</span>
                   <span className="relative flex h-2 w-2">
@@ -290,33 +291,40 @@ const Home: FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              {/* Actions Section */}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                {/* Excel Export Button */}
                 <button
                     onClick={exportToExcel}
                     disabled={isExporting || mensajes.length === 0}
-                    className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-blue-600/10 px-4 py-2 text-sm font-medium text-blue-400 hover:bg-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-600 bg-blue-600/10 px-3 py-2 text-sm font-medium text-blue-400 hover:bg-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:px-4"
                 >
                   <Download className={`h-4 w-4 ${isExporting ? "animate-bounce" : ""}`} />
-                  {isExporting ? "Exportando..." : "Descargar Excel"}
+                  <span className="hidden xs:inline">{isExporting ? "Exportando..." : "Descargar Excel"}</span>
+                  <span className="xs:hidden">{isExporting ? "..." : "Excel"}</span>
                 </button>
+
+                {/* Register Number Button */}
                 <button
                     onClick={() => setShowModal(true)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-600/20 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600/10 px-3 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-600/20 transition-colors sm:px-4"
                 >
                   <MessageSquare className="h-4 w-4" />
-                  Registrar Número
+                  <span className="hidden xs:inline">Registrar Número</span>
+                  <span className="xs:hidden">Registrar</span>
                 </button>
+
+                {/* Refresh Button */}
                 <button
                     onClick={fetchData}
                     disabled={loading}
-                    className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:px-4"
                 >
                   <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                  Actualizar
+                  <span className="hidden xs:inline">Actualizar</span>
                 </button>
               </div>
             </div>
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-zinc-500">
                 <Clock className="h-4 w-4" />
