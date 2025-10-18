@@ -11,7 +11,6 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function getMensajes(): Promise<Mensaje[]> {
     const data = await fetchJSON<any>("/api/mensajes");
-    // Soporta { mensajes: [...] } o [...]
     return Array.isArray(data) ? data : data.mensajes ?? [];
 }
 
