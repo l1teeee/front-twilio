@@ -1,63 +1,155 @@
-# TypeScript React Tailwind Vite Template
+# Dashboard WhatsApp con Análisis de IA
 
-This template provides a starting point for creating React projects with TypeScript, Tailwind CSS, and Vite.
+Sistema de análisis en tiempo real para mensajes de WhatsApp que utiliza inteligencia artificial para clasificar sentimientos, identificar temas y generar resúmenes automáticos.
 
-## Overview
+## Descripción
 
-This template allows you to quickly set up a React project with TypeScript, Tailwind CSS, and Vite. It provides a modern development environment with features such as hot module replacement and fast refresh, making it easy to develop and customize your React applications.
+Este proyecto consiste en un dashboard web que procesa y analiza mensajes de WhatsApp recibidos a través de la API de Twilio. El sistema proporciona visualizaciones en tiempo real de los datos procesados y permite la exportación de resultados en múltiples formatos.
 
-## Features
+## Características Principales
 
-- TypeScript: Develop with confidence using static type-checking and improved tooling.
+### Análisis Automático
+- Clasificación de sentimientos (positivo, negativo, neutro)
+- Identificación automática de temas principales
+- Generación de resúmenes inteligentes por mensaje
+- Procesamiento en tiempo real
 
-- React: Build dynamic user interfaces with the popular React library.
+### Interfaz de Usuario
+- Dashboard con métricas en tiempo real
+- Gráficos interactivos para visualización de datos
+- Actualización automática cada 30 segundos
+- Diseño responsivo para dispositivos móviles y escritorio
 
-- Tailwind CSS: Easily style and customize your components using the utility-first approach of Tailwind CSS.
+### Exportación de Datos
+- Exportación a formato CSV para análisis externos
+- Exportación a formato JSON para integración con otras aplicaciones
+- Organización de datos en archivos separados por categoría
+- Metadatos y estadísticas generales incluidas
 
-- Vite: Enjoy fast development and instant hot module replacement with Vite's lightning-fast dev server.
+### Respuesta Automática
+- Sistema de respuesta automática configurable
+- Respuestas personalizadas por palabras clave
+- Integración con Twilio Studio para flujos conversacionales
+- Soporte para horarios de atención
 
-## Installation
+## Tecnologías Utilizadas
 
-To create a new project using this template, follow these steps:
+**Frontend**
+- React 18 con TypeScript
+- Tailwind CSS para estilos
+- Recharts para visualizaciones
+- Framer Motion para animaciones
+- Lucide React para iconografía
 
-1. Ensure that you have Node.js installed on your machine.
-2. Open a terminal and navigate to the directory where you want to create your project.
-3. Run the following command to create a new project using the template:
+**Backend**
+- API REST para comunicación con servicios externos
+- Integración con Twilio WhatsApp API
+- Procesamiento de webhooks para mensajes entrantes
 
+**Herramientas de Desarrollo**
+- Vite como bundler y servidor de desarrollo
+- TypeScript para tipado estático
+- ESLint para análisis de código
+
+## Instalación
+
+### Requisitos Previos
+- Node.js versión 18 o superior
+- npm o yarn como gestor de paquetes
+- Cuenta activa de Twilio con WhatsApp API configurada
+
+### Configuración del Proyecto
+
+1. Clonar el repositorio
 ```bash
-npx create-vite@latest --template typescript-react-tailwind-vite my-project
+git clone [url-del-repositorio]
+cd front-twilio
 ```
 
-Replace my-project with the desired name for your project.
-
-4. Once the command completes, navigate into the project directory:
-
-```bash
-cd my-project
-```
-
-5. Install the dependencies:
-
+2. Instalar dependencias
 ```bash
 npm install
 ```
 
-## Usage
+3. Configurar variables de entorno
 
-To start the development server and run the project, use the following command:
+El proyecto incluye un archivo de configuración global `.env` pre-configurado que apunta a la API de producción:
 
+```
+VITE_API_BASE_URL=https://api-twilio.onrender.com
+```
+
+Nota: La configuración está lista para usar sin modificaciones adicionales.
+
+4. Iniciar servidor de desarrollo
 ```bash
 npm run dev
 ```
 
-This will start the development server and open your project in the browser. Any changes you make to the source code will be automatically reflected in the browser.
 
-## Building for Production
 
-To build the project for production, use the following command:
+## API Endpoints
 
+### Obtener Mensajes
+```
+GET /api/mensajes
+```
+Retorna array de mensajes procesados con análisis completo.
+
+### Obtener Análisis de Sentimientos
+```
+GET /api/sentimientos
+```
+Retorna objeto con contadores de sentimientos por categoría.
+
+### Obtener Análisis de Temas
+```
+GET /api/temas
+```
+Retorna objeto con frecuencia de temas identificados.
+
+## Uso del Sistema
+
+### Dashboard Principal
+
+El dashboard proporciona una vista general del sistema con las siguientes secciones:
+
+**Métricas en Tiempo Real**
+- Total de mensajes procesados
+- Distribución de sentimientos por categoría
+- Contadores individuales por tipo de sentimiento
+
+**Visualizaciones**
+- Gráfico circular para distribución de sentimientos
+- Gráfico de barras para frecuencia de temas
+- Timeline de mensajes recientes con detalles
+
+**Funciones de Exportación**
+- Botón de descarga para exportar todos los datos
+- Generación automática de múltiples archivos
+- Formatos CSV y JSON disponibles
+
+### Exportación de Datos
+
+El sistema genera los siguientes archivos al exportar:
+
+1. `WhatsApp_Mensajes_[fecha].csv` - Datos detallados de todos los mensajes
+2. `WhatsApp_Sentimientos_[fecha].csv` - Resumen de análisis de sentimientos
+3. `WhatsApp_Temas_[fecha].csv` - Ranking de temas más frecuentes
+4. `WhatsApp_Estadisticas_[fecha].json` - Métricas generales y metadatos
+
+## Despliegue
+
+### Construcción para Producción
 ```bash
 npm run build
 ```
 
-This will create an optimized build of your project in the dist directory.
+### Configuración de Variables de Entorno
+Asegurar que las variables de entorno estén configuradas correctamente en la plataforma de despliegue.
+
+### Verificación de Funcionamiento
+1. Verificar conectividad con la API de backend
+2. Confirmar recepción de webhooks de Twilio
+3. Validar funcionamiento de respuestas automáticas
+4. Probar exportación de datos
