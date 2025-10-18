@@ -1,7 +1,8 @@
 import { FC, useEffect, useMemo, useState } from "react";
-import { RefreshCw, MessageSquare, Clock, Activity } from "lucide-react";
+import { RefreshCw, MessageSquare, Clock, Activity, Download } from "lucide-react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Legend } from "recharts";
 import { motion } from "framer-motion";
+import * as XLSX from 'xlsx';
 import { getMensajes, getSentimientos, getTemas } from "@/services/whatsapp";
 import { Mensaje, SentimientosData, TemasData } from "@/types/api";
 import { SENTIMENT_COLORS } from "@/constants/colors.ts";
@@ -15,6 +16,7 @@ const Home: FC = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [showModal, setShowModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -32,6 +34,98 @@ const Home: FC = () => {
       console.error("Error:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Función para exportar a Excel
+  const exportToExcel = async () => {
+    try {
+      setIsExporting(true);
+
+      // Crear workbook
+      const workbook = XLSX.utils.book_new();
+
+      // Hoja 1: Mensajes detallados
+      const mensajesData = mensajes.map((mensaje, index) => ({
+        'N°': index + 1,
+        'Fecha y Hora': new Date(mensaje.timestamp).toLocaleString("es-ES"),
+        'Número Remitente': mensaje.numero_remitente,
+        'Mensaje': mensaje.texto_mensaje,
+        'Sentimiento': mensaje.sentimiento,
+        'Tema': mensaje.tema,
+        'Resumen IA': mensaje.resumen,
+        'ID': mensaje._id
+      }));
+
+      const mensajesSheet = XLSX.utils.json_to_sheet(mensajesData);
+
+      // Ajustar ancho de columnas
+      const mensajesColWidths = [
+        { wch: 5 },   // N°
+        { wch: 20 },  // Fecha y Hora
+        { wch: 15 },  // Número Remitente
+        { wch: 50 },  // Mensaje
+        { wch: 12 },  // Sentimiento
+        { wch: 15 },  // Tema
+        { wch: 60 },  // Resumen IA
+        { wch: 25 }   // ID
+      ];
+      mensajesSheet['!cols'] = mensajesColWidths;
+
+      XLSX.utils.book_append_sheet(workbook, mensajesSheet, "Mensajes");
+
+      // Hoja 2: Resumen de sentimientos
+      const sentimientosData = Object.entries(sentimientos).map(([sentimiento, cantidad]) => ({
+        'Sentimiento': sentimiento.charAt(0).toUpperCase() + sentimiento.slice(1),
+        'Cantidad': cantidad,
+        'Porcentaje': ((cantidad / mensajes.length) * 100).toFixed(1) + '%'
+      }));
+
+      const sentimientosSheet = XLSX.utils.json_to_sheet(sentimientosData);
+      sentimientosSheet['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(workbook, sentimientosSheet, "Sentimientos");
+
+      // Hoja 3: Resumen de temas
+      const temasData = Object.entries(temas)
+          .sort(([,a], [,b]) => b - a)
+          .map(([tema, cantidad], index) => ({
+            'Posición': index + 1,
+            'Tema': tema,
+            'Cantidad': cantidad,
+            'Porcentaje': ((cantidad / mensajes.length) * 100).toFixed(1) + '%'
+          }));
+
+      const temasSheet = XLSX.utils.json_to_sheet(temasData);
+      temasSheet['!cols'] = [{ wch: 10 }, { wch: 25 }, { wch: 10 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(workbook, temasSheet, "Temas");
+
+      // Hoja 4: Estadísticas generales
+      const estadisticasData = [
+        { 'Métrica': 'Total de Mensajes', 'Valor': mensajes.length },
+        { 'Métrica': 'Mensajes Positivos', 'Valor': sentimientos.positivo || 0 },
+        { 'Métrica': 'Mensajes Negativos', 'Valor': sentimientos.negativo || 0 },
+        { 'Métrica': 'Mensajes Neutros', 'Valor': sentimientos.neutro || 0 },
+        { 'Métrica': 'Fecha de Exportación', 'Valor': new Date().toLocaleString("es-ES") },
+        { 'Métrica': 'Última Actualización', 'Valor': lastUpdate.toLocaleString("es-ES") },
+        { 'Métrica': 'Total de Temas Únicos', 'Valor': Object.keys(temas).length },
+        { 'Métrica': 'Tema más Frecuente', 'Valor': Object.entries(temas).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A' }
+      ];
+
+      const estadisticasSheet = XLSX.utils.json_to_sheet(estadisticasData);
+      estadisticasSheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(workbook, estadisticasSheet, "Estadísticas");
+
+      // Generar archivo y descargar
+      const fechaHora = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+      const nombreArchivo = `WhatsApp_Analisis_${fechaHora}.xlsx`;
+
+      XLSX.writeFile(workbook, nombreArchivo);
+
+    } catch (error) {
+      console.error('Error al exportar a Excel:', error);
+      alert('Error al generar el archivo Excel. Por favor, inténtalo de nuevo.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -198,6 +292,14 @@ const Home: FC = () => {
 
               <div className="flex items-center gap-3">
                 <button
+                    onClick={exportToExcel}
+                    disabled={isExporting || mensajes.length === 0}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-blue-600/10 px-4 py-2 text-sm font-medium text-blue-400 hover:bg-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Download className={`h-4 w-4 ${isExporting ? "animate-bounce" : ""}`} />
+                  {isExporting ? "Exportando..." : "Descargar Excel"}
+                </button>
+                <button
                     onClick={() => setShowModal(true)}
                     className="inline-flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600/10 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-600/20 transition-colors"
                 >
@@ -215,9 +317,16 @@ const Home: FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
-              <Clock className="h-4 w-4" />
-              <span>Última actualización: {lastUpdate.toLocaleTimeString()}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-zinc-500">
+                <Clock className="h-4 w-4" />
+                <span>Última actualización: {lastUpdate.toLocaleTimeString()}</span>
+              </div>
+              {mensajes.length > 0 && (
+                  <div className="text-sm text-zinc-500">
+                    {mensajes.length} mensajes disponibles para exportar
+                  </div>
+              )}
             </div>
           </motion.div>
 
