@@ -127,26 +127,7 @@ El dashboard proporciona una vista general del sistema con las siguientes seccio
 **Funciones de Exportación**
 - Botón de descarga para exportar todos los datos
 - Generación automática de múltiples archivos
-- Formatos CSV y JSON disponibles
-
-### Exportación de Datos
-
-El sistema genera los siguientes archivos al exportar:
-
-1. `WhatsApp_Mensajes_[fecha].csv` - Datos detallados de todos los mensajes
-2. `WhatsApp_Sentimientos_[fecha].csv` - Resumen de análisis de sentimientos
-3. `WhatsApp_Temas_[fecha].csv` - Ranking de temas más frecuentes
-4. `WhatsApp_Estadisticas_[fecha].json` - Métricas generales y metadatos
-
-## Despliegue
-
-### Construcción para Producción
-```bash
-npm run build
-```
-
-### Configuración de Variables de Entorno
-Asegurar que las variables de entorno estén configuradas correctamente en la plataforma de despliegue.
+- Formatos CSV
 
 ### Verificación de Funcionamiento
 1. Verificar conectividad con la API de backend
