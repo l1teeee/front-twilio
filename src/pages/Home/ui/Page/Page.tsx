@@ -1,13 +1,15 @@
-import { FC, useEffect, useMemo, useState } from "react";
-import { RefreshCw, MessageSquare, Clock, Activity, Download, User, Calendar } from "lucide-react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Legend } from "recharts";
+import { FC, useEffect, useState } from "react";
+import { RefreshCw, MessageSquare, Clock, Activity, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import * as XLSX from 'xlsx';
 import { getMensajes, getSentimientos, getTemas } from "@/services/whatsapp";
 import { Mensaje, SentimientosData, TemasData } from "@/types/api";
-import { SENTIMENT_COLORS } from "@/constants/colors.ts";
 
-const COLORS = SENTIMENT_COLORS;
+import { KPICards } from "@/componentes/KPICards";
+import {SentimentChart} from "@/componentes/SentimentChart";
+import {TopicsChart} from "@/componentes/TopicsChart";
+import {Timeline} from "@/componentes/Timeline";
+import {RecentMessages} from "@/componentes/RecentMessages";
 
 const Home: FC = () => {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
@@ -37,15 +39,12 @@ const Home: FC = () => {
     }
   };
 
-  // Función para exportar a Excel
   const exportToExcel = async () => {
     try {
       setIsExporting(true);
 
-      // Crear workbook
       const workbook = XLSX.utils.book_new();
 
-      // Hoja 1: Mensajes detallados
       const mensajesData = mensajes.map((mensaje, index) => ({
         'N°': index + 1,
         'Fecha y Hora': new Date(mensaje.timestamp).toLocaleString("es-ES"),
@@ -58,23 +57,13 @@ const Home: FC = () => {
       }));
 
       const mensajesSheet = XLSX.utils.json_to_sheet(mensajesData);
-
-      // Ajustar ancho de columnas
       const mensajesColWidths = [
-        { wch: 5 },   // N°
-        { wch: 20 },  // Fecha y Hora
-        { wch: 15 },  // Número Remitente
-        { wch: 50 },  // Mensaje
-        { wch: 12 },  // Sentimiento
-        { wch: 15 },  // Tema
-        { wch: 60 },  // Resumen IA
-        { wch: 25 }   // ID
+        { wch: 5 }, { wch: 20 }, { wch: 15 }, { wch: 50 },
+        { wch: 12 }, { wch: 15 }, { wch: 60 }, { wch: 25 }
       ];
       mensajesSheet['!cols'] = mensajesColWidths;
-
       XLSX.utils.book_append_sheet(workbook, mensajesSheet, "Mensajes");
 
-      // Hoja 2: Resumen de sentimientos
       const sentimientosData = Object.entries(sentimientos).map(([sentimiento, cantidad]) => ({
         'Sentimiento': sentimiento.charAt(0).toUpperCase() + sentimiento.slice(1),
         'Cantidad': cantidad,
@@ -85,7 +74,6 @@ const Home: FC = () => {
       sentimientosSheet['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(workbook, sentimientosSheet, "Sentimientos");
 
-      // Hoja 3: Resumen de temas
       const temasData = Object.entries(temas)
           .sort(([,a], [,b]) => b - a)
           .map(([tema, cantidad], index) => ({
@@ -99,7 +87,6 @@ const Home: FC = () => {
       temasSheet['!cols'] = [{ wch: 10 }, { wch: 25 }, { wch: 10 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(workbook, temasSheet, "Temas");
 
-      // Hoja 4: Estadísticas generales
       const estadisticasData = [
         { 'Métrica': 'Total de Mensajes', 'Valor': mensajes.length },
         { 'Métrica': 'Mensajes Positivos', 'Valor': sentimientos.positivo || 0 },
@@ -108,14 +95,12 @@ const Home: FC = () => {
         { 'Métrica': 'Fecha de Exportación', 'Valor': new Date().toLocaleString("es-ES") },
         { 'Métrica': 'Última Actualización', 'Valor': lastUpdate.toLocaleString("es-ES") },
         { 'Métrica': 'Total de Temas Únicos', 'Valor': Object.keys(temas).length },
-        { 'Métrica': 'Tema más Frecuente', 'Valor': Object.entries(temas).sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A' }
       ];
 
       const estadisticasSheet = XLSX.utils.json_to_sheet(estadisticasData);
       estadisticasSheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(workbook, estadisticasSheet, "Estadísticas");
 
-      // Generar archivo y descargar
       const fechaHora = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
       const nombreArchivo = `WhatsApp_Analisis_${fechaHora}.xlsx`;
 
@@ -135,82 +120,9 @@ const Home: FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const chartSentimientos = useMemo(() => (
-      Object.entries(sentimientos)
-          .map(([key, value]) => ({
-            name: key,
-            value,
-            fill: COLORS[key as keyof typeof COLORS],
-          }))
-          .filter((d) => d.value > 0)
-  ), [sentimientos]);
-
-  const chartTemas = useMemo(() => (
-      Object.entries(temas)
-          .map(([name, cantidad]) => ({ name, cantidad }))
-          .sort((a, b) => b.cantidad - a.cantidad)
-  ), [temas]);
-
-  // Organizar mensajes por fecha para la timeline
-  const timelineData = useMemo(() => {
-    const mensajesOrdenados = [...mensajes].sort((a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-
-    const grouped = mensajesOrdenados.reduce((acc, mensaje) => {
-      const fecha = new Date(mensaje.timestamp).toLocaleDateString("es-ES", {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-
-      if (!acc[fecha]) {
-        acc[fecha] = [];
-      }
-      acc[fecha].push(mensaje);
-      return acc;
-    }, {} as Record<string, Mensaje[]>);
-
-    return Object.entries(grouped);
-  }, [mensajes]);
-
-  const getSentimentPill = (sentimiento: string) => {
-    switch (sentimiento) {
-      case "positivo": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      case "negativo": return "bg-red-500/10 text-red-400 border-red-500/20";
-      default:         return "bg-zinc-500/10 text-zinc-400 border-zinc-500/20";
-    }
-  };
-
-  const getSentimentIcon = (sentimiento: string) => {
-    switch (sentimiento) {
-      case "positivo": return "😊";
-      case "negativo": return "😞";
-      default: return "😐";
-    }
-  };
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-          <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg shadow-xl">
-            <p className="font-semibold text-white mb-1">{label}</p>
-            {payload.map((entry: any, index: number) => (
-                <p key={index} className="text-sm" style={{ color: entry.color }}>
-                  {entry.name}: <span className="font-semibold text-white">{entry.value}</span>
-                </p>
-            ))}
-          </div>
-      );
-    }
-    return null;
-  };
-
   return (
       <div className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-7xl px-4 py-8">
-          {/* Modal */}
           {showModal && (
               <motion.div
                   initial={{ opacity: 0 }}
@@ -302,7 +214,6 @@ const Home: FC = () => {
               </motion.div>
           )}
 
-          {/* Header */}
           <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -310,22 +221,19 @@ const Home: FC = () => {
               className="mb-8"
           >
             <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
-              {/* Header Section */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <h1 className="text-xl font-semibold sm:text-2xl">Dashboard WhatsApp</h1>
                 <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm w-fit">
                   <Activity className="h-3.5 w-3.5 text-emerald-500" />
                   <span className="text-zinc-400">En vivo</span>
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75"></span>
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                  </span>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                </span>
                 </div>
               </div>
 
-              {/* Actions Section */}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                {/* Excel Export Button */}
                 <button
                     onClick={exportToExcel}
                     disabled={isExporting || mensajes.length === 0}
@@ -336,7 +244,6 @@ const Home: FC = () => {
                   <span className="xs:hidden">{isExporting ? "..." : "Excel"}</span>
                 </button>
 
-                {/* Register Number Button */}
                 <button
                     onClick={() => setShowModal(true)}
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-600/10 px-3 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-600/20 transition-colors sm:px-4"
@@ -346,7 +253,6 @@ const Home: FC = () => {
                   <span className="xs:hidden">Registrar</span>
                 </button>
 
-                {/* Refresh Button */}
                 <button
                     onClick={fetchData}
                     disabled={loading}
@@ -370,344 +276,16 @@ const Home: FC = () => {
             </div>
           </motion.div>
 
-          {/* KPI Cards */}
-          <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="rounded-lg border border-zinc-800 bg-zinc-900 p-5"
-            >
-              <p className="text-sm font-medium text-zinc-400">Total mensajes</p>
-              <p className="mt-2 text-3xl font-semibold">{mensajes.length}</p>
-            </motion.div>
-            <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="rounded-lg border border-emerald-900/30 bg-emerald-950/20 p-5"
-            >
-              <p className="text-sm font-medium text-emerald-400">Positivos</p>
-              <p className="mt-2 text-3xl font-semibold text-emerald-400">{sentimientos.positivo || 0}</p>
-            </motion.div>
-            <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="rounded-lg border border-red-900/30 bg-red-950/20 p-5"
-            >
-              <p className="text-sm font-medium text-red-400">Negativos</p>
-              <p className="mt-2 text-3xl font-semibold text-red-400">{sentimientos.negativo || 0}</p>
-            </motion.div>
-            <motion.div
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="rounded-lg border border-zinc-800 bg-zinc-900 p-5"
-            >
-              <p className="text-sm font-medium text-zinc-400">Neutros</p>
-              <p className="mt-2 text-3xl font-semibold text-zinc-400">{sentimientos.neutro || 0}</p>
-            </motion.div>
-          </motion.div>
+          <KPICards totalMensajes={mensajes.length} sentimientos={sentimientos} />
 
-          {/* Charts */}
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Sentimientos */}
-            <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="rounded-lg border border-zinc-800 bg-zinc-900 p-6"
-            >
-              <h3 className="mb-6 text-lg font-semibold">Distribución de Sentimientos</h3>
-              <div className="h-80">
-                {chartSentimientos.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                            data={chartSentimientos}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={120}
-                            dataKey="value"
-                            stroke="#18181b"
-                            strokeWidth={2}
-                        >
-                          {chartSentimientos.map((entry, idx) => (
-                              <Cell key={`cell-${idx}`} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center text-zinc-600">
-                        <MessageSquare className="mx-auto mb-3 h-12 w-12" />
-                        <p className="text-sm">Sin datos disponibles</p>
-                      </div>
-                    </div>
-                )}
-              </div>
-
-              {chartSentimientos.length > 0 && (
-                  <div className="mt-6 flex flex-wrap justify-center gap-3 border-t border-zinc-800 pt-6">
-                    {chartSentimientos.map((entry, i) => (
-                        <div key={i} className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1.5">
-                          <span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.fill }} />
-                          <span className="text-sm capitalize text-zinc-300">{entry.name}</span>
-                          <span className="text-sm font-semibold">({entry.value})</span>
-                        </div>
-                    ))}
-                  </div>
-              )}
-            </motion.div>
-
-            {/* Temas */}
-            <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="rounded-lg border border-zinc-800 bg-zinc-900 p-6"
-            >
-              <h3 className="mb-6 text-lg font-semibold">Frecuencia de Temas</h3>
-              <div className="h-80">
-                {chartTemas.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartTemas} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis
-                            dataKey="name"
-                            axisLine={{ stroke: "#27272a" }}
-                            tickLine={false}
-                            fontSize={12}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                            tick={{ fill: "#71717a" }}
-                        />
-                        <YAxis
-                            axisLine={{ stroke: "#27272a" }}
-                            tickLine={false}
-                            fontSize={12}
-                            tick={{ fill: "#71717a" }}
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{ color: "#a1a1aa" }} />
-                        <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} fill="#3b82f6" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center text-zinc-600">
-                        <MessageSquare className="mx-auto mb-3 h-12 w-12" />
-                        <p className="text-sm">Sin datos disponibles</p>
-                      </div>
-                    </div>
-                )}
-              </div>
-            </motion.div>
+            <SentimentChart sentimientos={sentimientos} />
+            <TopicsChart temas={temas} />
           </div>
 
-          {/* Timeline de Mensajes */}
-          <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="mb-8 rounded-lg border border-zinc-800 bg-zinc-900"
-          >
-            <div className="border-b border-zinc-800 p-6">
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-blue-400" />
-                <h3 className="text-lg font-semibold">Timeline de Mensajes</h3>
-              </div>
-              <p className="mt-1 text-sm text-zinc-500">Cronología completa de mensajes recibidos</p>
-            </div>
+          <Timeline mensajes={mensajes} loading={loading} />
+          <RecentMessages mensajes={mensajes} loading={loading} />
 
-            <div className="max-h-[600px] overflow-y-auto">
-              {loading && mensajes.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-zinc-600">
-                    <RefreshCw className="h-10 w-10 animate-spin" />
-                    <p>Cargando timeline...</p>
-                  </div>
-              ) : timelineData.length > 0 ? (
-                  <div className="p-6">
-                    {timelineData.map(([fecha, mensajesDia], dayIndex) => (
-                        <motion.div
-                            key={fecha}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: dayIndex * 0.1 }}
-                            className="relative"
-                        >
-                          {/* Fecha Header */}
-                          <div className="sticky top-0 z-10 mb-4 flex items-center gap-3 bg-zinc-900 pb-2">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20 border border-blue-500/30">
-                              <Calendar className="h-5 w-5 text-blue-400" />
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold text-white capitalize">{fecha}</h4>
-                              <p className="text-xs text-zinc-400">{mensajesDia.length} mensajes</p>
-                            </div>
-                          </div>
-
-                          {/* Mensajes del día */}
-                          <div className="ml-5 border-l-2 border-zinc-800 pl-6 pb-6">
-                            {mensajesDia.map((mensaje, msgIndex) => (
-                                <motion.div
-                                    key={mensaje._id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: (dayIndex * 0.1) + (msgIndex * 0.05) }}
-                                    className="relative mb-6 last:mb-0"
-                                >
-                                  {/* Punto en la línea */}
-                                  <div className="absolute -left-8 top-3 h-3 w-3 rounded-full border-2 border-zinc-800 bg-zinc-900">
-                                    <div className={`h-full w-full rounded-full ${
-                                        mensaje.sentimiento === 'positivo' ? 'bg-emerald-500' :
-                                            mensaje.sentimiento === 'negativo' ? 'bg-red-500' : 'bg-zinc-500'
-                                    }`} />
-                                  </div>
-
-                                  {/* Card del mensaje */}
-                                  <motion.div
-                                      whileHover={{ scale: 1.01, backgroundColor: "rgba(39, 39, 42, 0.5)" }}
-                                      className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 transition-all duration-200"
-                                  >
-                                    {/* Header del mensaje */}
-                                    <div className="mb-3 flex items-start justify-between">
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex items-center gap-1">
-                                          <User className="h-3 w-3 text-zinc-400" />
-                                          <span className="text-xs text-zinc-400">{mensaje.numero_remitente}</span>
-                                        </div>
-                                        <span className="text-lg">{getSentimentIcon(mensaje.sentimiento)}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                        <Clock className="h-3 w-3" />
-                                        {new Date(mensaje.timestamp).toLocaleTimeString("es-ES", {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </div>
-                                    </div>
-
-                                    {/* Contenido del mensaje */}
-                                    <div className="mb-3">
-                                      <p className="text-white leading-relaxed">"{mensaje.texto_mensaje}"</p>
-                                    </div>
-
-                                    {/* Tags */}
-                                    <div className="mb-3 flex flex-wrap gap-2">
-                                      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getSentimentPill(mensaje.sentimiento)}`}>
-                                        {mensaje.sentimiento}
-                                      </span>
-                                      <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-400">
-                                        {mensaje.tema}
-                                      </span>
-                                    </div>
-
-                                    {/* Resumen IA */}
-                                    <div className="rounded-lg bg-zinc-900 p-3 border border-zinc-700">
-                                      <div className="flex items-start gap-2">
-                                        <div className="mt-0.5 h-2 w-2 rounded-full bg-purple-500" />
-                                        <div>
-                                          <p className="text-xs font-medium text-purple-400 mb-1">Análisis IA</p>
-                                          <p className="text-sm text-zinc-300 leading-relaxed">{mensaje.resumen}</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                </motion.div>
-                            ))}
-                          </div>
-                        </motion.div>
-                    ))}
-                  </div>
-              ) : (
-                  <div className="py-12 text-center text-zinc-600">
-                    <Calendar className="mx-auto mb-4 h-14 w-14" />
-                    <h4 className="mb-1 text-base font-medium text-zinc-400">No hay mensajes en la timeline</h4>
-                    <p className="text-sm">Los mensajes aparecerán aquí organizados por fecha</p>
-                  </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Feed de Mensajes Recientes (sección original) */}
-          <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="rounded-lg border border-zinc-800 bg-zinc-900"
-          >
-            <div className="border-b border-zinc-800 p-6">
-              <h3 className="text-lg font-semibold">Mensajes Recientes</h3>
-              <p className="mt-1 text-sm text-zinc-500">Últimos mensajes en tiempo real</p>
-            </div>
-
-            <div className="max-h-96 overflow-y-auto">
-              {loading && mensajes.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-zinc-600">
-                    <RefreshCw className="h-10 w-10 animate-spin" />
-                    <p>Cargando mensajes...</p>
-                  </div>
-              ) : mensajes.length > 0 ? (
-                  <ul className="divide-y divide-zinc-800">
-                    {mensajes.slice(0, 12).map((mensaje, index) => (
-                        <motion.li
-                            key={mensaje._id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
-                            whileHover={{ backgroundColor: "rgba(39, 39, 42, 0.5)" }}
-                            className="p-6 transition-colors"
-                        >
-                          <div className="mb-3 flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getSentimentPill(mensaje.sentimiento)}`}>
-                                {mensaje.sentimiento}
-                              </span>
-                              <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-400">
-                                {mensaje.tema}
-                              </span>
-                            </div>
-                            <div className="text-xs text-zinc-500">
-                              {new Date(mensaje.timestamp).toLocaleString("es-ES", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </div>
-                          </div>
-
-                          <div className="mb-3">
-                            <p className="mb-1 text-sm font-medium text-zinc-400">De: {mensaje.numero_remitente}</p>
-                            <p className="text-white">"{mensaje.texto_mensaje}"</p>
-                          </div>
-
-                          <div className="rounded-lg bg-zinc-950 p-3 border border-zinc-800">
-                            <p className="text-sm text-zinc-400">
-                              <strong className="text-zinc-300">Resumen IA:</strong> {mensaje.resumen}
-                            </p>
-                          </div>
-                        </motion.li>
-                    ))}
-                  </ul>
-              ) : (
-                  <div className="py-12 text-center text-zinc-600">
-                    <MessageSquare className="mx-auto mb-4 h-14 w-14" />
-                    <h4 className="mb-1 text-base font-medium text-zinc-400">No hay mensajes disponibles</h4>
-                    <p className="text-sm">Los mensajes aparecerán aquí cuando lleguen por WhatsApp</p>
-                  </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Footer */}
           <div className="mt-8 text-center text-xs text-zinc-600">
             <p>Actualiza cada 30s automáticamente</p>
           </div>
